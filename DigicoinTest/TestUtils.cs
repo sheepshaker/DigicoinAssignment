@@ -8,6 +8,30 @@ namespace DigicoinTest
 {
     public static class TestUtils
     {
+        public static IDictionary<int, decimal> GetDummyCommisionMap()
+        {
+            Dictionary<int, decimal> commisionMap = new Dictionary<int, decimal>();
+
+            for (int i = 10; i <= 100; i += 10)
+            {
+                commisionMap.Add(i, 0.05m);
+            }
+
+            return commisionMap;
+        }
+
+        public static IDictionary<int, decimal> GetIncompleteCommissionMap()
+        {
+            Dictionary<int, decimal> commisionMap = new Dictionary<int, decimal>();
+
+            for (int i = 10; i <= 90; i += 10)
+            {
+                commisionMap.Add(i, 0.05m);
+            }
+
+            return commisionMap;
+        } 
+
         public static void CompareOrders(IEnumerable<Order> one, IEnumerable<Order> two)
         {
             CompareIEnumerable(one, two,

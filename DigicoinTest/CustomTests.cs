@@ -1,8 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using DigicoinService;
 using DigicoinService.Model;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using DigicoinService;
 
 namespace DigicoinTest
 {
@@ -139,6 +142,106 @@ namespace DigicoinTest
             };
 
             CollectionAssert.AreEqual(brokerVolumeMap, _service.Brokers.ToDictionary(b => b.UserId, b => b.VolumeTraded));
+        }
+
+        [TestMethod]
+        public void UserDoesntExistsThrowsException()
+        {
+            string userName = "UserDoesntExistsThrowsException";
+            _service.AddClient(userName);
+            _service.RemoveClient(userName);
+            AssertException.Throws<ArgumentException>(() => _service.RemoveClient(userName));
+            AssertException.Throws<ArgumentException>(() => _service.RemoveClient(null));
+            AssertException.Throws<ArgumentException>(() => _service.RemoveClient(string.Empty));
+
+            _service.AddBroker(userName, TestUtils.GetDummyCommisionMap(), 10);
+            _service.RemoveBroker(userName);
+            AssertException.Throws<ArgumentException>(() => _service.RemoveBroker(userName));
+            AssertException.Throws<ArgumentException>(() => _service.RemoveBroker(null));
+            AssertException.Throws<ArgumentException>(() => _service.RemoveBroker(string.Empty));
+        }
+
+        [TestMethod]
+        public void UserAlreadyExistsThrowsException()
+        {
+            string userName = "UserAlreadyExistsThrowsException";
+            _service.AddClient(userName);
+            AssertException.Throws<ArgumentException>(() => _service.AddClient(userName));
+
+            _service.AddBroker(userName, TestUtils.GetDummyCommisionMap(), 10);
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, TestUtils.GetDummyCommisionMap(), 10));
+        }
+
+        [TestMethod]
+        public void ClientCreationBadNameThrowsException()
+        {
+            AssertException.Throws<ArgumentException>(() => _service.AddClient(null));
+            AssertException.Throws<ArgumentException>(() => _service.AddClient(string.Empty));
+        }
+
+        [TestMethod]
+        public void BrokerCreationBadNameThrowsException()
+        {
+            AssertException.Throws<ArgumentException>(
+                () => _service.AddBroker(null, TestUtils.GetDummyCommisionMap(), 10));
+            AssertException.Throws<ArgumentException>(
+                () => _service.AddBroker(string.Empty, TestUtils.GetDummyCommisionMap(), 10));
+        }
+
+        [TestMethod]
+        public void BrokerCreationBadCommissionMapThrowsException()
+        {
+            string userName = "BrokerCreationBadCommissionMapThrowsException";
+
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, null, 10));
+
+            AssertException.Throws<ArgumentException>(
+                () => _service.AddBroker(userName, new Dictionary<int, decimal>(), 10));
+
+            IDictionary<int, decimal> commisionMap = TestUtils.GetIncompleteCommissionMap();
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, commisionMap, 10));
+            commisionMap.Add(101, 10);
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, commisionMap, 10));
+            commisionMap = TestUtils.GetIncompleteCommissionMap();
+            commisionMap.Add(100, 0);
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, commisionMap, 10));
+            commisionMap = TestUtils.GetIncompleteCommissionMap();
+            commisionMap.Add(100, -1);
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, commisionMap, 10));
+            commisionMap = TestUtils.GetIncompleteCommissionMap();
+            commisionMap.Add(99, -1);
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, commisionMap, 10));
+            commisionMap = TestUtils.GetIncompleteCommissionMap();
+            commisionMap.Add(100, 1);
+            commisionMap.Add(110, 1);
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, commisionMap, 10));
+        }
+
+        [TestMethod]
+        public void BrokerCreationBadPriceThrowsException()
+        {
+            string userName = "BrokerCreationBadPriceThrowsException";
+
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, TestUtils.GetDummyCommisionMap(), 0));
+            AssertException.Throws<ArgumentException>(() => _service.AddBroker(userName, TestUtils.GetDummyCommisionMap(), -1));
+        }
+
+        [TestMethod]
+        public void ServiceCreationBadArgumentThrowsException()
+        {
+            AssertException.Throws<ArgumentNullException>(() => new DigicoinService.DigicoinService(new[] {new Client("ServiceCreationBadArgumentThrowsException") }, null));
+            AssertException.Throws<ArgumentNullException>(
+                () =>
+                    new DigicoinService.DigicoinService(null,
+                        new[]
+                        {new Broker("ServiceCreationBadArgumentThrowsException", TestUtils.GetDummyCommisionMap(), 10)}));
+        }
+
+        [TestMethod]
+        public void GetClientNetPositionBadArgumentThrowsException()
+        {
+            //to do
+            Assert.Fail();
         }
 
         [TestMethod]

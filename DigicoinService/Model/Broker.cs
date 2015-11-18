@@ -16,6 +16,16 @@ namespace DigicoinService.Model
                 throw new ArgumentNullException("commissionMap");
             }
 
+            if (commissionMap.Any() == false || commissionMap.Keys.Max() > 100 || commissionMap.Values.Any(c => c <= 0) || commissionMap.Keys.Count != 10 || commissionMap.Keys.Sum() != 550)
+            {
+                throw new ArgumentOutOfRangeException("commissionMap");
+            }
+
+            if (price <= 0)
+            {
+                throw new ArgumentException("price");
+            }
+
             Price = price;
             _quotes = CalculateQuotes(commissionMap);
         }

@@ -185,6 +185,11 @@ namespace DigicoinService
 
         public decimal GetClientNetPosition(string clientId)
         {
+            if (string.IsNullOrEmpty(clientId))
+            {
+                throw new ArgumentException("clientId");
+            }
+
             if (_clients.ContainsKey(clientId) == false)
             {
                 throw new ArgumentException("Client doesn't exist", "clientId");
@@ -212,6 +217,11 @@ namespace DigicoinService
 
         public void AddClient(string clientId)
         {
+            if (string.IsNullOrEmpty(clientId))
+            {
+                throw new ArgumentException("clientId");
+            }
+
             if (_clients.ContainsKey(clientId))
             {
                 throw new ArgumentException("Client already exists", "clientId");
@@ -222,7 +232,12 @@ namespace DigicoinService
 
         public void RemoveClient(string clientId)
         {
-            if (_clients.ContainsKey(clientId))
+            if (string.IsNullOrEmpty(clientId))
+            {
+                throw new ArgumentException("clientId");
+            }
+
+            if (_clients.ContainsKey(clientId) == false)
             {
                 throw new ArgumentException("Client doesn't exists", "clientId");
             }
@@ -232,6 +247,11 @@ namespace DigicoinService
 
         public void AddBroker(string brokerId, IDictionary<int, decimal> commissionMap, decimal price)
         {
+            if (string.IsNullOrEmpty(brokerId))
+            {
+                throw new ArgumentException("brokerId");
+            }
+
             if (_brokers.ContainsKey(brokerId))
             {
                 throw new ArgumentException("Broker already exists", "brokerId");
@@ -242,7 +262,12 @@ namespace DigicoinService
 
         public void RemoveBroker(string brokerId)
         {
-            if (_brokers.ContainsKey(brokerId))
+            if (string.IsNullOrEmpty(brokerId))
+            {
+                throw new ArgumentException("brokerId");
+            }
+
+            if (_brokers.ContainsKey(brokerId) == false)
             {
                 throw new ArgumentException("Broker doesn't exists", "brokerId");
             }
