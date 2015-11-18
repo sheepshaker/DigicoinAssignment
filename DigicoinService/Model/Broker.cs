@@ -30,7 +30,7 @@ namespace DigicoinService.Model
             //pre-calculate quotes
             foreach (var key in commissionMap.Keys)
             {
-                Quote quote = new Quote(key, GetPriceAfterCommission(key, commissionMap), this);
+                Quote quote = new Quote(key, GetPriceAfterCommission(key, commissionMap), UserId);
                 quotes.Add(quote);
             }
 
@@ -48,7 +48,7 @@ namespace DigicoinService.Model
 
             var quotePrice = lotSize * Price;
            
-            return quotePrice + quotePrice * commission;
+            return Math.Round(quotePrice + quotePrice * commission, 3);
         }
 
         internal IEnumerable<Quote> GetQuotes(int lotSize)
@@ -69,6 +69,6 @@ namespace DigicoinService.Model
             _volumeTraded += volume;
         }
 
-        internal decimal Price { get; set; }
+        internal decimal Price { get; private set; }
     }
 }

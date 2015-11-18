@@ -7,8 +7,9 @@ namespace DigicoinService
 {
     public class DigicoinService : IDigicoinService
     {
-        private IEnumerable<Client> _clients;
-        private IEnumerable<Broker> _brokers;
+        private readonly IDictionary<string, Client> _clients;
+        private readonly IDictionary<string, Broker> _brokers;
+        private readonly IList<Order> _orders;
 
         private DigicoinService()
         {
@@ -27,18 +28,19 @@ namespace DigicoinService
                 throw new ArgumentNullException("brokers");
             }
 
-            _clients = clients;
-            _brokers = brokers;
+            _clients = clients.ToDictionary(c => c.UserId);
+            _brokers = brokers.ToDictionary(b => b.UserId);
+            _orders = new List<Order>();
         }
 
         public IEnumerable<Client> Clients
         {
-            get { return _clients; }
+            get { return _clients.Values; }
         }
 
         public IEnumerable<Broker> Brokers
         {
-            get { return _brokers; }
+            get { return _brokers.Values; }
         }
 
         public Order Buy(string clientId, int lotSize)
@@ -84,25 +86,125 @@ namespace DigicoinService
                 throw new ArgumentException("Invalid increment: only multiples of 10", "lotSize");
             }
 
-            Client client = _clients.FirstOrDefault(c => c.UserId == clientId);
-
-            if (client == null)
+            if(_clients.ContainsKey(clientId) == false)
             {
                 throw new ArgumentException("Client doesn't exist", "clientId");
             }
 
             var bestQuotes = GetBestQuotes(lotSize);
 
-            var order = new Order(direction, bestQuotes);
+            var order = new Order(direction, clientId, bestQuotes);
 
-            client.AddOrder(order);
-
-            foreach (var quote in order.Quotes)
+            if (order.Quotes != null)
             {
-                quote.Broker.AddVolume(quote.LotSize);
+                foreach (var quote in order.Quotes)
+                {
+                    _brokers[quote.BrokerId].AddVolume(quote.LotSize);
+                }
+
             }
 
+            _orders.Add(order);
+           
             return order;
         }
+
+        public Broker GetBroker(string brokerId)
+        {
+            return Brokers.FirstOrDefault(b => b.UserId == brokerId);
+        }
+
+        public Client GetClient(string clientId)
+        {
+            return Clients.FirstOrDefault(c => c.UserId == clientId);
+        }
+
+        //public IEnumerable<Order> GetClientOrders(string clientId)
+        //{
+        //    IList<Order> orders;
+
+        //    if(_orders.TryGetValue(clientId, out orders) == false)
+        //    {
+        //        throw new ArgumentException("Client doesn't exist", "clientId");
+        //    }
+
+        //    return orders;
+        //}
+
+        public IList<Order> Orders
+        {
+            get
+            {
+                return _orders;
+            }
+        }
+
+        public decimal GetClientNetPosition(string clientId)
+        {
+            if (_clients.ContainsKey(clientId) == false)
+            {
+                throw new ArgumentException("Client doesn't exist", "clientId");
+            }
+
+            if (_orders.Any() == false)
+            {
+                throw new Exception("No orders available");
+            }
+
+            var orders = _orders.Where(o => o.ClientId == clientId).ToArray();
+            if (orders.Any() == false)
+            {
+                throw new Exception(string.Format("No orders available for client {0}", clientId));
+            }
+
+            var netPositions = orders.Average(o => o.TotalPrice/Math.Abs(o.TotalVolume))*
+                                   orders.Sum(o => o.TotalVolume);
+
+            //test output seem to be 3 DP max, e.g.: 296.156 as opposed to 296.1564103
+            netPositions = Math.Round(netPositions, 3);
+
+            return netPositions;
+        }
+
+        public void AddClient(string clientId)
+        {
+            if (_clients.ContainsKey(clientId))
+            {
+                throw new ArgumentException("Client already exists", "clientId");
+            }
+
+            _clients.Add(clientId, new Client(clientId));
+        }
+
+        public void RemoveClient(string clientId)
+        {
+            if (_clients.ContainsKey(clientId))
+            {
+                throw new ArgumentException("Client doesn't exists", "clientId");
+            }
+
+            _clients.Remove(clientId);
+        }
+
+        public void AddBroker(string brokerId, IDictionary<int, decimal> commissionMap, decimal price)
+        {
+            if (_brokers.ContainsKey(brokerId))
+            {
+                throw new ArgumentException("Broker already exists", "brokerId");
+            }
+
+            _brokers.Add(brokerId, new Broker(brokerId, commissionMap, price));
+        }
+
+        public void RemoveBroker(string brokerId)
+        {
+            if (_brokers.ContainsKey(brokerId))
+            {
+                throw new ArgumentException("Broker doesn't exists", "brokerId");
+            }
+
+            _brokers.Remove(brokerId);
+        }
+
     }
 }

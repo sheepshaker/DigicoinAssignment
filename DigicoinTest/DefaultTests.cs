@@ -1,4 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using DigicoinService;
 using DigicoinService.Model;
@@ -53,63 +57,49 @@ namespace DigicoinTest
         [TestMethod]
         public void DefaultTests()
         {
-            var order = _service.Buy("Client A", 10);
-            Assert.AreEqual(order.TotalPrice, 15.645m);
-            Assert.AreEqual(order.TotalVolume, 10);
+            IEnumerable<Order> transactions = new List<Order>
+            {
+                new Order(Direction.Buy, "Client A", new[] {new Quote(10, 15.6450m, "Broker 1")}),
+                new Order(Direction.Buy, "Client B", new[] {new Quote(40, 62.58m, "Broker 1")}),
+                new Order(Direction.Buy, "Client A", new[] {new Quote(50, 77.9m, "Broker 2")}),
+                new Order(Direction.Buy, "Client B", new[] {new Quote(100, 155.04m, "Broker 2")}),
+                new Order(Direction.Sell, "Client B", new[] {new Quote(80, 124.64m, "Broker 2")}),
+                new Order(Direction.Sell, "Client C", new[] {new Quote(70, 109.06m, "Broker 2")}),
+                new Order(Direction.Buy, "Client A", new[] {new Quote(30, 46.935m, "Broker 1"), new Quote(100, 155.04m, "Broker 2")}),
+                new Order(Direction.Sell, "Client B", new[] {new Quote(60, 93.48m, "Broker 2")})
+            };
 
-            order = _service.Buy("Client B", 40);
-            Assert.AreEqual(order.TotalPrice, 62.58m);
-            Assert.AreEqual(order.TotalVolume, 40);
+            _service.Buy("Client A", 10);
+            _service.Buy("Client B", 40);
+            _service.Buy("Client A", 50);
+            _service.Buy("Client B", 100);
+            _service.Sell("Client B", 80);
+            _service.Sell("Client C", 70);
+            _service.Buy("Client A", 130);
+            _service.Sell("Client B", 60);
 
-            order = _service.Buy("Client A", 50);
-            Assert.AreEqual(order.TotalPrice, 77.9m);
-            Assert.AreEqual(order.TotalVolume, 50);
+            TestUtils.CompareIEnumerable(_service.Orders, transactions,
+                (x, y) =>
+                    x.ClientId == y.ClientId && x.TotalPrice == y.TotalPrice && x.TotalVolume == y.TotalVolume &&
+                    TestUtils.AreEqual(x.Quotes, y.Quotes,
+                        (a, b) => a.BrokerId == b.BrokerId && a.LotSize == b.LotSize && a.Price == b.Price));
 
-            order = _service.Buy("Client B", 100);
-            Assert.AreEqual(order.TotalPrice, 155.04m);
-            Assert.AreEqual(order.TotalVolume, 100);
-
-            order = _service.Sell("Client B", 80);
-            Assert.AreEqual(order.TotalPrice, 124.64m);
-            Assert.AreEqual(order.TotalVolume, -80);
-
-            order = _service.Sell("Client C", 70);
-            Assert.AreEqual(order.TotalPrice, 109.06m);
-            Assert.AreEqual(order.TotalVolume, -70);
-
-            order = _service.Buy("Client A", 130);
-            Assert.AreEqual(order.TotalPrice, 201.975m);
-            Assert.AreEqual(order.TotalVolume, 130);
-
-            order = _service.Sell("Client B", 60);
-            Assert.AreEqual(order.TotalPrice, 93.48m);
-            Assert.AreEqual(order.TotalVolume, -60);
-
-
-            Dictionary<string, decimal> clientNets = new Dictionary<string, decimal>
+            Dictionary<string, decimal> clientNetMap = new Dictionary<string, decimal>
             {
                 {"Client A", 296.156m},
                 {"Client B", 0},
                 {"Client C", -109.06m}
             };
 
-            foreach (Client client in _service.Clients)
-            {
-                var testVal = clientNets[client.UserId];
-                Assert.AreEqual(client.NetPositions, testVal);
-            }
+            CollectionAssert.AreEqual(clientNetMap, _service.Clients.ToDictionary(c => c.UserId, c => _service.GetClientNetPosition(c.UserId)));
 
-            Dictionary<string, int> brokerMap = new Dictionary<string, int>
+            Dictionary<string, int> brokerVolumeMap = new Dictionary<string, int>
             {
                 { "Broker 1", 80},
                 { "Broker 2", 460},
             };
-
-            foreach (Broker broker in _service.Brokers)
-            {
-                var testVal = brokerMap[broker.UserId];
-                Assert.AreEqual(broker.VolumeTraded, testVal);
-            }
+            
+            CollectionAssert.AreEqual(brokerVolumeMap, _service.Brokers.ToDictionary(b => b.UserId, b => b.VolumeTraded));
         }
     }
 }
