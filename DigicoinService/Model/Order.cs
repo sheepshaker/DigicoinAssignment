@@ -13,7 +13,7 @@ namespace DigicoinService.Model
             TotalVolume = enumerable.Sum(q => direction == Direction.Buy ? q.LotSize : -q.LotSize);
         }
 
-        internal IEnumerable<Quote> Quotes { get; }
+        internal IEnumerable<Quote> Quotes { get; set; }
         public decimal TotalPrice { get; private set; }
         public decimal TotalVolume { get; private set; }
     }

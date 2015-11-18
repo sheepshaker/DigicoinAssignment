@@ -69,6 +69,6 @@ namespace DigicoinService.Model
             _volumeTraded += volume;
         }
 
-        internal decimal Price { get; }
+        internal decimal Price { get; set; }
     }
 }
