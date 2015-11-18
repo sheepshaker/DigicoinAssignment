@@ -11,12 +11,14 @@ namespace DigicoinService
         private readonly IDictionary<string, Broker> _brokers;
         private readonly IList<Order> _orders;
 
-        private DigicoinService()
+        public DigicoinService()
         {
-            //hide default constructor
+            _clients = new Dictionary<string, Client>();
+            _brokers = new Dictionary<string, Broker>();
+            _orders = new List<Order>();
         }
 
-        public DigicoinService(IEnumerable<Client> clients, IEnumerable<Broker> brokers)
+        public DigicoinService(IEnumerable<Client> clients, IEnumerable<Broker> brokers) 
         {
             if (clients == null)
             {
@@ -53,11 +55,55 @@ namespace DigicoinService
             return CreateNewOrder(Direction.Sell, clientId, lotSize);
         }
 
+        /*private IEnumerable<Quote> GetBestQuotes(int lotSize)
+        {
+            List<Quote> quotes = new List<Quote>();
+            Dictionary<Broker, IEnumerable<Quote>> quoteMap = new Dictionary<Broker, IEnumerable<Quote>>();
+            Dictionary<string, Broker> brokersMap = Brokers.ToDictionary(b => b.UserId);
+
+            List<int> split = new List<int>();
+
+            if (lotSize > 100)
+            {
+                split.Add(lotSize - 100);
+                split.Add(100);
+            }
+            else
+            {
+                split.Add(lotSize);
+            }
+
+            foreach (var s in split)
+            {
+                foreach (var broker in brokersMap.Values)
+                {
+                    quoteMap[broker] = broker.GetQuotes(s);
+                }
+
+                //generate cartesian product from all the quotes of all the brokers
+                //this will give us all the combinations of split orders
+                var res = quoteMap.Values.CartesianProduct().
+                    //filter out order sizes which don't match the required lotSize
+                    Where(array => array.Sum(quote => quote.LotSize) == lotSize).
+                    //create sorted dictionary with the value contating collection of quotes and associated price as the key
+                    ToDictionary(quote => quote.Sum(q => q.Price)).OrderBy(dict => dict.Key);
+
+                //take the collection of quotes for the best price, ignore dummy quotes
+                var bestQuotes = res.FirstOrDefault().Value.FirstOrDefault(v => v.IsEmpty == false);
+
+                quotes.Add(bestQuotes);
+
+                brokersMap.Remove(bestQuotes.BrokerId);
+            }
+
+            return quotes;
+        }*/
+
         private IEnumerable<Quote> GetBestQuotes(int lotSize)
         {
             Dictionary<Broker, IEnumerable<Quote>> quoteMap = new Dictionary<Broker, IEnumerable<Quote>>();
-            
-            foreach(var broker in Brokers)
+
+            foreach (var broker in Brokers)
             {
                 quoteMap[broker] = broker.GetQuotes(lotSize);
             }
@@ -69,9 +115,10 @@ namespace DigicoinService
                 Where(array => array.Sum(quote => quote.LotSize) == lotSize).
                 //create sorted dictionary with the value contating collection of quotes and associated price as the key
                 ToDictionary(quote => quote.Sum(q => q.Price)).OrderBy(dict => dict.Key);
-            
-            //take the collection of quotes for the best price, ignore dummy quotes
-            return res.FirstOrDefault().Value.Where(v => v.IsEmpty == false);
+
+            var x = res.FirstOrDefault().Value.Where(v => v.IsEmpty == false).OrderBy(o => o.Price).ToList();
+            //take the collection of quotes for the best price, ignore dummy quotes, sort by Price
+            return res.FirstOrDefault().Value.Where(v => v.IsEmpty == false).OrderBy(o => o.Price);
         }
 
         private Order CreateNewOrder(Direction direction, string clientId, int lotSize)
@@ -86,12 +133,21 @@ namespace DigicoinService
                 throw new ArgumentException("Invalid increment: only multiples of 10", "lotSize");
             }
 
-            if(_clients.ContainsKey(clientId) == false)
+            if (lotSize < 10)
+            {
+                throw new ArgumentOutOfRangeException("lotSize", "Invalid size: 10 is minimum");
+            }
+
+            if (_clients.ContainsKey(clientId) == false)
             {
                 throw new ArgumentException("Client doesn't exist", "clientId");
             }
 
-            var bestQuotes = GetBestQuotes(lotSize);
+           
+
+            var bestQuotes = GetBestQuotes(lotSize).ToList();
+            //quotes.AddRange(bestQuotes.ToArray());
+            
 
             var order = new Order(direction, clientId, bestQuotes);
 
@@ -118,18 +174,6 @@ namespace DigicoinService
         {
             return Clients.FirstOrDefault(c => c.UserId == clientId);
         }
-
-        //public IEnumerable<Order> GetClientOrders(string clientId)
-        //{
-        //    IList<Order> orders;
-
-        //    if(_orders.TryGetValue(clientId, out orders) == false)
-        //    {
-        //        throw new ArgumentException("Client doesn't exist", "clientId");
-        //    }
-
-        //    return orders;
-        //}
 
         public IList<Order> Orders
         {

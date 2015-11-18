@@ -11,7 +11,6 @@ namespace DigicoinService
         Order Sell(string clientId, int lotSize);
         Broker GetBroker(string brokerId);
         Client GetClient(string clientId);
-        //IEnumerable<Order> GetClientOrders(string clientId);
         IList<Order> Orders { get; }
         decimal GetClientNetPosition(string clientId);
         void AddClient(string clientId);

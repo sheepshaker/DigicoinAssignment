@@ -1,15 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using DigicoinService.Model;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DigicoinTest
 {
     public static class TestUtils
     {
-        public static bool AreEqual<T>(IEnumerable<T> one, IEnumerable<T> two, Func<T, T, bool> comparisonFunction)
+        public static void CompareOrders(IEnumerable<Order> one, IEnumerable<Order> two)
+        {
+            CompareIEnumerable(one, two,
+                (x, y) =>
+                    x.ClientId == y.ClientId && x.TotalPrice == y.TotalPrice && x.TotalVolume == y.TotalVolume &&
+                    AreEqual(x.Quotes, y.Quotes,
+                        (a, b) => a.BrokerId == b.BrokerId && a.LotSize == b.LotSize && a.Price == b.Price));
+        } 
+
+        private static bool AreEqual<T>(IEnumerable<T> one, IEnumerable<T> two, Func<T, T, bool> comparisonFunction)
         {
             var oneArray = one as T[] ?? one.ToArray();
             var twoArray = two as T[] ?? two.ToArray();
@@ -29,7 +37,7 @@ namespace DigicoinTest
             return true;
         }
 
-        public static void CompareIEnumerable<T>(IEnumerable<T> one, IEnumerable<T> two, Func<T, T, bool> comparisonFunction)
+        private static void CompareIEnumerable<T>(IEnumerable<T> one, IEnumerable<T> two, Func<T, T, bool> comparisonFunction)
         {
             var oneArray = one as T[] ?? one.ToArray();
             var twoArray = two as T[] ?? two.ToArray();

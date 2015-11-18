@@ -78,11 +78,7 @@ namespace DigicoinTest
             _service.Buy("Client A", 130);
             _service.Sell("Client B", 60);
 
-            TestUtils.CompareIEnumerable(_service.Orders, transactions,
-                (x, y) =>
-                    x.ClientId == y.ClientId && x.TotalPrice == y.TotalPrice && x.TotalVolume == y.TotalVolume &&
-                    TestUtils.AreEqual(x.Quotes, y.Quotes,
-                        (a, b) => a.BrokerId == b.BrokerId && a.LotSize == b.LotSize && a.Price == b.Price));
+            TestUtils.CompareOrders(_service.Orders, transactions);
 
             Dictionary<string, decimal> clientNetMap = new Dictionary<string, decimal>
             {
