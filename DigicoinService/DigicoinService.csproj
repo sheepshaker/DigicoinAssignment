@@ -43,12 +43,11 @@
     <Compile Include="CartesianProduct.cs" />
     <Compile Include="DigicoinService.cs" />
     <Compile Include="IDigicoinService.cs" />
+    <Compile Include="Model\AllocatedOrder.cs" />
     <Compile Include="Model\Broker.cs" />
     <Compile Include="Model\Direction.cs" />
-    <Compile Include="Model\Client.cs" />
     <Compile Include="Model\Order.cs" />
     <Compile Include="Model\Quote.cs" />
-    <Compile Include="Model\UserBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

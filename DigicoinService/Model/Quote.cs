@@ -1,7 +1,4 @@
 ﻿
-using System;
-using System.Collections.Generic;
-
 namespace DigicoinService.Model
 {
     public class Quote
@@ -12,14 +9,14 @@ namespace DigicoinService.Model
             IsEmpty = true;
         }
 
-        public Quote(int lotSize, decimal price, string brokerId)
+        public Quote(int lotSize, decimal priceAfterCommission, string brokerId)
         {
-            Price = price;
+            PriceAfterCommission = priceAfterCommission;
             LotSize = lotSize;
             BrokerId = brokerId;
         }
 
-        public decimal Price { get; private set; }
+        public decimal PriceAfterCommission { get; private set; }
         public int LotSize { get; private set; }
         public string BrokerId { get; private set; }
         internal bool IsEmpty { get; private set; }

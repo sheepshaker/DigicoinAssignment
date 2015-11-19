@@ -7,103 +7,55 @@ namespace DigicoinService
 {
     public class DigicoinService : IDigicoinService
     {
-        private readonly IDictionary<string, Client> _clients;
         private readonly IDictionary<string, Broker> _brokers;
-        private readonly IList<Order> _orders;
+        private readonly IDictionary<string, IList<AllocatedOrder>> _orders;
 
         public DigicoinService()
         {
-            _clients = new Dictionary<string, Client>();
+            _orders = new Dictionary<string, IList<AllocatedOrder>>();
             _brokers = new Dictionary<string, Broker>();
-            _orders = new List<Order>();
+
+            InitialiseBrokers();
         }
 
-        public DigicoinService(IEnumerable<Client> clients, IEnumerable<Broker> brokers) 
+        private void InitialiseBrokers()
         {
-            if (clients == null)
+            Dictionary<int, decimal> commisionMap = new Dictionary<int, decimal>();
+            for (int i = 10; i <= 100; i += 10)
             {
-                throw new ArgumentNullException("clients");
+                commisionMap.Add(i, 0.05m);
             }
+            var broker1 = new Broker("Broker 1", commisionMap, 1.49m);
 
-            if (brokers == null)
+            commisionMap = new Dictionary<int, decimal>();
+            for (int i = 10; i <= 100; i += 10)
             {
-                throw new ArgumentNullException("brokers");
-            }
-
-            _clients = clients.ToDictionary(c => c.UserId);
-            _brokers = brokers.ToDictionary(b => b.UserId);
-            _orders = new List<Order>();
-        }
-
-        public IEnumerable<Client> Clients
-        {
-            get { return _clients.Values; }
-        }
-
-        public IEnumerable<Broker> Brokers
-        {
-            get { return _brokers.Values; }
-        }
-
-        public Order Buy(string clientId, int lotSize)
-        {
-            return CreateNewOrder(Direction.Buy, clientId, lotSize);
-        }
-
-        public Order Sell(string clientId, int lotSize)
-        {
-            return CreateNewOrder(Direction.Sell, clientId, lotSize);
-        }
-
-        /*private IEnumerable<Quote> GetBestQuotes(int lotSize)
-        {
-            List<Quote> quotes = new List<Quote>();
-            Dictionary<Broker, IEnumerable<Quote>> quoteMap = new Dictionary<Broker, IEnumerable<Quote>>();
-            Dictionary<string, Broker> brokersMap = Brokers.ToDictionary(b => b.UserId);
-
-            List<int> split = new List<int>();
-
-            if (lotSize > 100)
-            {
-                split.Add(lotSize - 100);
-                split.Add(100);
-            }
-            else
-            {
-                split.Add(lotSize);
-            }
-
-            foreach (var s in split)
-            {
-                foreach (var broker in brokersMap.Values)
+                if (i >= 10 && i <= 40)
                 {
-                    quoteMap[broker] = broker.GetQuotes(s);
+                    commisionMap.Add(i, 0.03m);
+
                 }
+                else if (i >= 50 && i <= 80)
+                {
+                    commisionMap.Add(i, 0.025m);
 
-                //generate cartesian product from all the quotes of all the brokers
-                //this will give us all the combinations of split orders
-                var res = quoteMap.Values.CartesianProduct().
-                    //filter out order sizes which don't match the required lotSize
-                    Where(array => array.Sum(quote => quote.LotSize) == lotSize).
-                    //create sorted dictionary with the value contating collection of quotes and associated price as the key
-                    ToDictionary(quote => quote.Sum(q => q.Price)).OrderBy(dict => dict.Key);
-
-                //take the collection of quotes for the best price, ignore dummy quotes
-                var bestQuotes = res.FirstOrDefault().Value.FirstOrDefault(v => v.IsEmpty == false);
-
-                quotes.Add(bestQuotes);
-
-                brokersMap.Remove(bestQuotes.BrokerId);
+                }
+                else
+                {
+                    commisionMap.Add(i, 0.02m);
+                }
             }
+            var broker2 = new Broker("Broker 2", commisionMap, 1.52m);
 
-            return quotes;
-        }*/
+            _brokers.Add("Broker 1", broker1);
+            _brokers.Add("Broker 2", broker2);
+        }
 
         private IEnumerable<Quote> GetBestQuotes(int lotSize)
         {
             Dictionary<Broker, IEnumerable<Quote>> quoteMap = new Dictionary<Broker, IEnumerable<Quote>>();
 
-            foreach (var broker in Brokers)
+            foreach (var broker in _brokers.Values)
             {
                 quoteMap[broker] = broker.GetQuotes(lotSize);
             }
@@ -114,166 +66,69 @@ namespace DigicoinService
                 //filter out order sizes which don't match the required lotSize
                 Where(array => array.Sum(quote => quote.LotSize) == lotSize).
                 //create sorted dictionary with the value contating collection of quotes and associated price as the key
-                ToDictionary(quote => quote.Sum(q => q.Price)).OrderBy(dict => dict.Key);
+                ToDictionary(quote => quote.Sum(q => q.PriceAfterCommission)).OrderBy(dict => dict.Key);
 
-            var x = res.FirstOrDefault().Value.Where(v => v.IsEmpty == false).OrderBy(o => o.Price).ToList();
             //take the collection of quotes for the best price, ignore dummy quotes, sort by Price
-            return res.FirstOrDefault().Value.Where(v => v.IsEmpty == false).OrderBy(o => o.Price);
+            return res.FirstOrDefault().Value.Where(v => v.IsEmpty == false).OrderBy(q => q.PriceAfterCommission);
         }
 
-        private Order CreateNewOrder(Direction direction, string clientId, int lotSize)
-        {
-            if (lotSize > 200)
-            {
-                throw new ArgumentOutOfRangeException("lotSize", "Invalid size: no more than 100 per Broker");
-            }
-
-            if (lotSize % 10 > 0)
-            {
-                throw new ArgumentException("Invalid increment: only multiples of 10", "lotSize");
-            }
-
-            if (lotSize < 10)
-            {
-                throw new ArgumentOutOfRangeException("lotSize", "Invalid size: 10 is minimum");
-            }
-
-            if (_clients.ContainsKey(clientId) == false)
-            {
-                throw new ArgumentException("Client doesn't exist", "clientId");
-            }
-
-           
-
-            var bestQuotes = GetBestQuotes(lotSize).ToList();
-            //quotes.AddRange(bestQuotes.ToArray());
-            
-
-            var order = new Order(direction, clientId, bestQuotes);
-
-            if (order.Quotes != null)
-            {
-                foreach (var quote in order.Quotes)
-                {
-                    _brokers[quote.BrokerId].AddVolume(quote.LotSize);
-                }
-
-            }
-
-            _orders.Add(order);
-           
-            return order;
-        }
-
-        public Broker GetBroker(string brokerId)
-        {
-            return Brokers.FirstOrDefault(b => b.UserId == brokerId);
-        }
-
-        public Client GetClient(string clientId)
-        {
-            return Clients.FirstOrDefault(c => c.UserId == clientId);
-        }
-
-        public IList<Order> Orders
-        {
-            get
-            {
-                return _orders;
-            }
-        }
-
-        public decimal GetClientNetPosition(string clientId)
+        public decimal ExecuteOrder(string clientId, Order order)
         {
             if (string.IsNullOrEmpty(clientId))
             {
                 throw new ArgumentException("clientId");
             }
 
-            if (_clients.ContainsKey(clientId) == false)
+            var bestQuotes = GetBestQuotes(order.LotSize).ToArray();
+
+            var price = AllocateOrder(clientId, order, bestQuotes);
+
+            return price;
+        }
+
+        private decimal AllocateOrder(string clientId, Order order, Quote[] quotes)
+        {
+            decimal totalPrice = 0;
+
+            foreach (var quote in quotes)
             {
-                throw new ArgumentException("Client doesn't exist", "clientId");
+                _brokers[quote.BrokerId].AddVolume(quote.LotSize);
+                totalPrice += quote.PriceAfterCommission;
             }
 
-            if (_orders.Any() == false)
+            AllocatedOrder ao = new AllocatedOrder(order, totalPrice, quotes);
+
+            if (_orders.ContainsKey(clientId) == false)
             {
-                throw new Exception("No orders available");
+                _orders.Add(clientId, new List<AllocatedOrder> {ao});
+            }
+            else
+            {
+                _orders[clientId].Add(ao);
             }
 
-            var orders = _orders.Where(o => o.ClientId == clientId).ToArray();
-            if (orders.Any() == false)
-            {
-                throw new Exception(string.Format("No orders available for client {0}", clientId));
-            }
+            return totalPrice;
+        }
 
-            var netPositions = orders.Average(o => o.TotalPrice/Math.Abs(o.TotalVolume))*
-                                   orders.Sum(o => o.TotalVolume);
+        public Dictionary<string, decimal> ClientsNetPosition
+        {
+            get { return _orders.ToDictionary(ao => ao.Key, ao => CalculateClientsNetPosition(ao.Value.ToArray())); }
+        }
+
+        public Dictionary<string, int> BrokersVolumeTraded
+        {
+            get { return _brokers.ToDictionary(b => b.Key, b => b.Value.VolumeTraded); }
+        }
+
+        private decimal CalculateClientsNetPosition(AllocatedOrder[] allocatedOrders)
+        {
+            var netPositions = allocatedOrders.Average(o => o.OrderPrice/Math.Abs(o.ClientOrder.LotSize))*
+                               allocatedOrders.Sum(o => o.VolumeTraded);
 
             //test output seem to be 3 DP max, e.g.: 296.156 as opposed to 296.1564103
             netPositions = Math.Round(netPositions, 3);
 
             return netPositions;
         }
-
-        public void AddClient(string clientId)
-        {
-            if (string.IsNullOrEmpty(clientId))
-            {
-                throw new ArgumentException("clientId");
-            }
-
-            if (_clients.ContainsKey(clientId))
-            {
-                throw new ArgumentException("Client already exists", "clientId");
-            }
-
-            _clients.Add(clientId, new Client(clientId));
-        }
-
-        public void RemoveClient(string clientId)
-        {
-            if (string.IsNullOrEmpty(clientId))
-            {
-                throw new ArgumentException("clientId");
-            }
-
-            if (_clients.ContainsKey(clientId) == false)
-            {
-                throw new ArgumentException("Client doesn't exists", "clientId");
-            }
-
-            _clients.Remove(clientId);
-        }
-
-        public void AddBroker(string brokerId, IDictionary<int, decimal> commissionMap, decimal price)
-        {
-            if (string.IsNullOrEmpty(brokerId))
-            {
-                throw new ArgumentException("brokerId");
-            }
-
-            if (_brokers.ContainsKey(brokerId))
-            {
-                throw new ArgumentException("Broker already exists", "brokerId");
-            }
-
-            _brokers.Add(brokerId, new Broker(brokerId, commissionMap, price));
-        }
-
-        public void RemoveBroker(string brokerId)
-        {
-            if (string.IsNullOrEmpty(brokerId))
-            {
-                throw new ArgumentException("brokerId");
-            }
-
-            if (_brokers.ContainsKey(brokerId) == false)
-            {
-                throw new ArgumentException("Broker doesn't exists", "brokerId");
-            }
-
-            _brokers.Remove(brokerId);
-        }
-
     }
 }

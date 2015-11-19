@@ -1,22 +1,31 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System;
 
 namespace DigicoinService.Model
 {
     public class Order
     {
-        public Order(Direction direction, string clientId, IEnumerable<Quote> quotes)
+        public Order(Direction direction, int lotSize)
         {
-            ClientId = clientId;
-            Quotes = quotes;
-            var enumerable = Quotes as IList<Quote> ?? Quotes.ToList();
-            TotalPrice = enumerable.Sum(q => q.Price);
-            TotalVolume = enumerable.Sum(q => direction == Direction.Buy ? q.LotSize : -q.LotSize);
+            if (lotSize < 10)
+            {
+                throw new ArgumentException("Invalid size: 10 is minimum", "lotSize");
+            }
+
+            if (lotSize % 10 > 0)
+            {
+                throw new ArgumentException("Invalid size: only multiples of 10", "lotSize");
+            }
+
+            if (lotSize > 200)
+            {
+                throw new ArgumentException("Invalid size: no more than 100 per Broker", "lotSize");
+            }
+
+            Direction = direction;
+            LotSize = lotSize;
         }
 
-        public string ClientId { get; private set; }
-        public IEnumerable<Quote> Quotes { get; private set; }
-        public decimal TotalPrice { get; private set; }
-        public decimal TotalVolume { get; private set; }
+        public int LotSize { get; private set; }
+        public Direction Direction { get; private set; }
     }
 }

@@ -4,33 +4,18 @@ using System.Linq;
 
 namespace DigicoinService.Model
 {
-    public class Broker : UserBase
+    public class Broker
     {
         private readonly IEnumerable<Quote> _quotes;
         private int _volumeTraded;
+        //public string BrokerId { get; private set; }
 
-        public Broker(string brokerId, IDictionary<int, decimal> commissionMap, decimal price) : base(brokerId)
+        public Broker(string brokerId, IDictionary<int, decimal> commissionMap, decimal price)
         {
-            if (commissionMap == null)
-            {
-                throw new ArgumentNullException("commissionMap");
-            }
-
-            if (commissionMap.Any() == false || commissionMap.Keys.Max() > 100 || commissionMap.Values.Any(c => c <= 0) || commissionMap.Keys.Count != 10 || commissionMap.Keys.Sum() != 550)
-            {
-                throw new ArgumentOutOfRangeException("commissionMap");
-            }
-
-            if (price <= 0)
-            {
-                throw new ArgumentException("price");
-            }
-
-            Price = price;
-            _quotes = CalculateQuotes(commissionMap);
+            _quotes = CalculateQuotes(commissionMap, price, brokerId);
         }
 
-        private IEnumerable<Quote> CalculateQuotes(IDictionary<int, decimal> commissionMap)
+        private IEnumerable<Quote> CalculateQuotes(IDictionary<int, decimal> commissionMap, decimal price, string brokerId)
         {
             var quotes = new List<Quote>();
 
@@ -38,16 +23,16 @@ namespace DigicoinService.Model
             quotes.Add(Quote.Empty);
 
             //pre-calculate quotes
-            foreach (var key in commissionMap.Keys)
+            foreach (var lotSizeIncrement in commissionMap.Keys)
             {
-                Quote quote = new Quote(key, GetPriceAfterCommission(key, commissionMap), UserId);
+                Quote quote = new Quote(lotSizeIncrement, GetPriceAfterCommission(lotSizeIncrement, commissionMap, price), brokerId);
                 quotes.Add(quote);
             }
 
             return quotes;
         } 
 
-        private decimal GetPriceAfterCommission(int lotSize, IDictionary<int, decimal> commissionMap)
+        private decimal GetPriceAfterCommission(int lotSize, IDictionary<int, decimal> commissionMap, decimal price)
         {
             decimal commission;
 
@@ -56,7 +41,7 @@ namespace DigicoinService.Model
                 throw new Exception("Invalid lot size");
             }
 
-            var quotePrice = lotSize * Price;
+            var quotePrice = lotSize * price;
            
             return Math.Round(quotePrice + quotePrice * commission, 3);
         }
@@ -78,7 +63,5 @@ namespace DigicoinService.Model
         {
             _volumeTraded += volume;
         }
-
-        internal decimal Price { get; private set; }
     }
 }
